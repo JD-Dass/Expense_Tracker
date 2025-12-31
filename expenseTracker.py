@@ -1,44 +1,64 @@
+from datetime import datetime
 #MySql based project
 import mysql.connector                           # import mysql.connector for expense tracker project
 
-myexp = mysql.connector.connect(
-    host = "localhost",
-    user = "root",
-    password = "root",
-    database = "expense_tracker"
+myexp = mysql.connector.connect(                 # connect mysql in puthon
+    host = "localhost",                          # enter host name
+    user = "root",                               #enter user id
+    password = "root",                           #enter sql password
+    database = "expense_tracker"                 #enter database name
 )
 
 mycursor = myexp.cursor()
 
+# date validation
+def is_valid_date(date_text):
+    try:
+        datetime.strptime(date_text, "%Y-%m-%d")
+        return True
+    except ValueError:
+        return False
+
 #  add expense
-def add_expense():                                    # add new expense to the expenses list
-    print("\n---Add Expense---")                              # print the add expense header
+def add_expense():                                # add new expense to the expenses list
+    print("\n---Add Expense---")                  # print the add expense header
 
     date = input("Enter Date(YYYY-MM-DD): ")                  # get the date from the user
+    if date and not is_valid_date(date):
+        print("Invalid date format. Use YYYY-MM-DD")
+        return
 
     try:                                                      #get the amount from the user and convert it to float
         amount = float(input("Enter Amount: "))               # get the amount from the user and convert it to float
     except ValueError:                                        # if the user enters an invalid amount
-        print("❌ Invalid Amount")                            # print invalid amount message
+        print("Invalid Amount")                            # print invalid amount message
         return                                                #return from the function
     
     category = input(
         "Enter Category\n(Food / Travel / Medical / Others): "
-        ).capitalize()                                        # get the categoty from the user and capitalize the first letter
+        ).capitalize()                                           # get the categoty from the user and capitalize the first letter
     if category not in ["Food", "Medical", "Travel", "Others"]:
-        category = "Others"                                   # if the category not in the list set it to others
+        category = "Others"                                      # if the category not in the list set it to others
     
-    note = input("Enter Note (Optional): ")                   # get the note from the user
+    note = input("Enter Note (Optional): ")                      # get the note from the user
 
-    exp = """    
-    INSERT INTO expenses (date, amount, category, note)
-    VALUES (%S, %S, %S, %S)
-    """                                                       #insert the data for expenses database and assign the value using INSERT statement and injuction methed
-    value = ("date", "amount", "category", "note")            #assign the user input values
+    if date:                                                     #if user enter the date
+        exp = """    
+        INSERT INTO expenses (date, amount, category, note)
+        VALUES (%s, %s, %s, %s)
+        """                                                       #insert the data for expenses database and assign the value using INSERT statement
+        value = (date, amount, category, note)                    #assign the user input values
+    else:                                                         #if user can not enter the date
+        exp = """    
+        INSERT INTO expenses (amount, category, note)
+        VALUES (%s, %s, %s)
+        """                                                       #insert the data for expenses database and assign the value using INSERT statement
+        value = (amount, category, note)   
+
     mycursor.execute(exp, value)                              #execute the mysql insert statement
     myexp.commit()                                            # save the data permanetly
 
-    print("✅ The Expense Added Successfully")                # print the success message
+    print("The Expense Added Successfully")                # print the success message
 
 # view expenses
 def view_expenses():                                          # view all expenses from the database
@@ -66,7 +86,7 @@ def view_total():                                             #view total expens
     if total is None:                           #if total is empty 
         print("No Expenses Found")              #print no expenses found
     else:                                       #if total is not empty
-        print("Total Expense: {total}")         #print total expenses total
+        print(f"Total Expense: {total}")         #print total expenses total
 
 # category-wise summary
 def category_wise_summary():                    # view category wise summary from the expenses table
@@ -86,11 +106,11 @@ def category_wise_summary():                    # view category wise summary fro
 while True:                                     # main program loop
     print("""
           --- Expense Tracker Menu (Choose Number Only) ---
-          "1. Add Expense
-          "2. View all Expenses
-          "3. View Total Expense
-          "4. Category-wise Summary
-          "5. Exit
+          1. Add Expense
+          2. View all Expenses
+          3. View Total Expense
+          4. Category-wise Summary
+          5. Exit
           """)                                 # print the menu options
 
     choice = input("Enter Choice: ")           # get the choice from the user
@@ -105,12 +125,12 @@ while True:                                     # main program loop
         category_wise_summary()                # view category wise summary
     elif choice == "5":
         print("""
-              📁 Expenses saved successfully.
+              Expenses saved successfully.
               Exiting Expense Tracker. Goodbye!
               """)                             # print save and exit message
         break                                  # exit the program
     else:
-        print("❌ Invalid choice! Please select 1 to 5.")      #print invalid choice message for wrong input
+        print("Invalid choice! Please select 1 to 5.")      #print invalid choice message for wrong input
 
 mycursor.close()
 myexp.close()
