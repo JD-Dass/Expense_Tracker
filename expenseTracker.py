@@ -1,107 +1,89 @@
-import csv
-import os
+#MySql based project
+import mysql.connector                           # import mysql.connector for expense tracker project
 
-EXPENSES_FILE = "expenses.csv"   # file to store expenses and create the csv file
+myexp = mysql.connector.connect(
+    host = "localhost",
+    user = "root",
+    password = "root",
+    database = "expense_tracker"
+)
 
-# Load expenses
-def load_expenses():  # load expenses from the csv file
-    expenses = []  #list to store expenses
-
-    if not os.path.exists(EXPENSES_FILE):  # check if file exists
-        return expenses  #returs empty list if file dose not exists
-    
-    with open(EXPENSES_FILE, "r", newline = "") as file:  #open the file in read mode with new line as a empty string
-        reader = csv.DictReader(file)  #read the file as a dictionary and store the data in reader variable
-        for row in reader:    #iterate through each row in the reader
-            row["Amount"] = float(row["Amount"])   #conver the amount from string to float
-            expenses.append(row)   # append the row to the expenses list
-    return expenses  # return the expenses list
-
-# save expenses
-def save_expenses(expenses):   # save expenses to the csv file
-    with open(EXPENSES_FILE, "w", newline="") as file:   # open the file in the write mode and newline as empty string
-        fieldnames = ["Date", "Amount", "Category", "Note"]   # create the column names for the csv file
-        writer = csv.DictWriter(file, fieldnames = fieldnames)   # create a csv dictionary writer object
-
-        writer.writeheader()  # write the header to the csv file
-        for expense in expenses:   # iterate through each expense in the expenses list 
-            writer.writerow(expense)   #write the expense to the csv file
+mycursor = myexp.cursor()
 
 #  add expense
-def add_expense(expenses):   # add new expense to the expenses list
-    print("\n---Add Expense---")   # print the add expense header
+def add_expense():                                    # add new expense to the expenses list
+    print("\n---Add Expense---")                              # print the add expense header
 
-    date = input("Enter Date(YYYY-MM-DD): ")   # get the date from the user
+    date = input("Enter Date(YYYY-MM-DD): ")                  # get the date from the user
 
-    try:  #get the amount from the user and convert it to float
-        amount = float(input("Enter Amount: "))   # get the amount from the user and convert it to float
-    except ValueError:   # if the user enters an invalid amount
-        print("❌ Invalid Amount")   # print invalid amount message
-        return   #return from the function
+    try:                                                      #get the amount from the user and convert it to float
+        amount = float(input("Enter Amount: "))               # get the amount from the user and convert it to float
+    except ValueError:                                        # if the user enters an invalid amount
+        print("❌ Invalid Amount")                            # print invalid amount message
+        return                                                #return from the function
     
-    category = input("Enter Category\n(Food / Travel / Medical / Others): ").capitalize()   # get the categoty from the user and capitalize the first letter
+    category = input(
+        "Enter Category\n(Food / Travel / Medical / Others): "
+        ).capitalize()                                        # get the categoty from the user and capitalize the first letter
     if category not in ["Food", "Medical", "Travel", "Others"]:
-        category = "Others"   # if the category not in the list set it to others
+        category = "Others"                                   # if the category not in the list set it to others
     
-    note = input("Enter Note (Optional): ")   # get the note from the user
+    note = input("Enter Note (Optional): ")                   # get the note from the user
 
-    expense = {   # create a new expense dictionary
-        "Date" : date,
-        "Amount" : amount,
-        "Category" : category,
-        "Note" : note
-    }
-    expenses.append(expense)   # append the new expense to the expenses list
-    print("✅ The Expense Add Successfully")   # print the success message
+    exp = """    
+    INSERT INTO expenses (date, amount, category, note)
+    VALUES (%S, %S, %S, %S)
+    """                                                       #insert the data for expenses database and assign the value using INSERT statement and injuction methed
+    value = ("date", "amount", "category", "note")            #assign the user input values
+    mycursor.execute(exp, value)                              #execute the mysql insert statement
+    myexp.commit()                                            # save the data permanetly
 
-    save_expenses(expenses)   # save the expenses to the csv file
+    print("✅ The Expense Added Successfully")                # print the success message
 
 # view expenses
-def view_expenses(expenses):   # view all expenses from the expenses list
-    print("\n---View all Expenses---")   # print the view expenses header
-    if not expenses:   # check if the expenses list is empty
-        print("NO Expenses Found")   # print no expenses found message for empty list
-        return   # return from the function
+def view_expenses():                                          # view all expenses from the database
+    print("\n---View all Expenses---")                        # print the view expenses header
+
+    mycursor.execute("SELECT date, amount, category, note FROM expenses")     #execute the mysql SELECT query 
+    rows = mycursor.fetchall()                                #fetch all data thet means call all data and store the row
+
+    if not rows:                                              # check the database for is an empty
+        print("No Expenses Found")                            #if empty print no expenses found
+        return                                                #if else stop the if stament and return the print statement
     
-    print("Date       Amount     Category     Note")   # print the headerfor the expenses table
+    print("Date       Amount     Category     Note")          # print the headerfor the expenses table
     print("---------------------------------------")
-    for exp in expenses:   # iterate through each exp from the expenses list
-        print(f"{exp['Date']}  {exp['Amount']}  {exp['Category']}  {exp['Note']} ")   # print the expense detsils
+    for row in rows:                                          # iterate through each row from the rows list
+        print(f"{row[0]}  {row[1]}  {row[2]}  {row[3]} ")     # print the expense detsils
 
 # view total expense
-def view_total(expenses):   #view total expense from the expenses list
-    print("---View Total Expense---")   # print the biew total expense header
-    if not expenses:   # check if the expenses list is empty
-        print("NO Expenses Found")   #print no expenses found message for empty list
-        return   # return from the function
-    
-    total = sum(exp["Amount"] for exp in expenses)   # calculate the total expense by summing up the amount of each expense in the expenses list
-    print(f"\n💰 Total Expense: {total}")   # print the total expense
+def view_total():                                             #view total expense from the expenses table
+    print("---View Total Expense---")                         # print the total expense header
+
+    mycursor.execute("SELECT SUM(amount) FROM expenses")      #execute the select statement 
+    total = mycursor.fetchone()[0]                            #fetch one line only and store in total variable
+
+    if total is None:                           #if total is empty 
+        print("No Expenses Found")              #print no expenses found
+    else:                                       #if total is not empty
+        print("Total Expense: {total}")         #print total expenses total
 
 # category-wise summary
-def category_wise_summary(expenses):   # view category wise summary from the expenses list
-    print("---Category-wise Summary---")   # print header
-    if not expenses:   # check if teh expenses list is empty
-        print("NO Expenses Found")
-        return
-    
-    summary = {   # create a summery dictionary to store the total amount for each category
-        "Food" : 0,
-        "Travel" : 0,
-        "Medical" : 0,
-        "Others" : 0
-    }
+def category_wise_summary():                    # view category wise summary from the expenses table
+    print("---Category-wise Summary---")        # print header
 
-    for exp in expenses:   # iterate through each expense in the expenses list
-        summary[exp["Category"]] += exp["Amount"]    # add the amount to the respective category in the summery dictionary
+    mycursor.execute("SELECT category, SUM(amount) FROM expenses GROUP BY category")      #execute the select statement and sum the category in amount
+    rows = mycursor.fetchall()                  #fetching all data in expenses table
 
-    for cat, amt in summary.items():   # iterate through each category and amount in the summery dictionary
-        print(f"{cat} : {amt}")   # print the category and amount
+    if not rows:                                # check if expenses table is empty
+        print("NO Expenses Found")              # if empty when print no expenses found
+        return                                  #exit the if statement and return the value
+
+    for cat, amt in rows:                       # iterate through each category and amount in the rows
+        print(f"{cat} : {amt}")                 # print the category and amount
 
 # main program loop
-expenses = load_expenses()   # load the expenses from the csv file
-
-while True:   # main program loop
+while True:                                     # main program loop
     print("""
           --- Expense Tracker Menu (Choose Number Only) ---
           "1. Add Expense
@@ -109,24 +91,26 @@ while True:   # main program loop
           "3. View Total Expense
           "4. Category-wise Summary
           "5. Exit
-          """)   # print the menu options
+          """)                                 # print the menu options
 
-    choice = input("Enter Choice: ")   # get the choice from the user
+    choice = input("Enter Choice: ")           # get the choice from the user
 
     if choice == "1":
-        add_expense(expenses)  # add new expense
+        add_expense()                          # add new expense table
     elif choice == "2":
-        view_expenses(expenses)   # view all expenses
+        view_expenses()                        # view all expensestable
     elif choice == "3":
-        view_total(expenses)   # view total expense
+        view_total()                           # view total expensetable
     elif choice == "4":
-        category_wise_summary(expenses)   # view category wise summary
+        category_wise_summary()                # view category wise summary
     elif choice == "5":
-        save_expenses(expenses)   # save expenses to the csv file
         print("""
               📁 Expenses saved successfully.
               Exiting Expense Tracker. Goodbye!
-              """)    # print save and exit message
-        break   # exit the program
+              """)                             # print save and exit message
+        break                                  # exit the program
     else:
-        print("❌ Invalid choice! Please select 1 to 5.")   #print invalid choice message for wrong input
+        print("❌ Invalid choice! Please select 1 to 5.")      #print invalid choice message for wrong input
+
+mycursor.close()
+myexp.close()
